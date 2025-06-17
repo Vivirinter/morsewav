@@ -1,0 +1,25 @@
+# Build directories
+build/
+cmake-build-*/
+
+# IDE metadata
+.idea/
+
+# CMake generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# Object & binary outputs
+*.o
+*.obj
+*.a
+*.so
+*.dll
+*.exe
+morsewav
+
+# Audio outputs
+*.wav
