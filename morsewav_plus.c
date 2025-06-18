@@ -9,6 +9,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <limits.h>
+#include <sys/wait.h>   /* waitpid */
+#include <signal.h>
+#include <fcntl.h>
 #include "lib/wav.h"
 #include "lib/morse.h"
 #include "lib/dsp.h"
@@ -18,41 +21,64 @@
 #include "version.h"
 
 static void play_file(const char *path){
-#if defined(__APPLE__)
-    char cmd[PATH_MAX+64];
-    snprintf(cmd,sizeof(cmd),"afplay '%s' >/dev/null 2>&1", path);
-#elif defined(_WIN32)
-    /* Use PowerShell to play sound invisibly */
+#if defined(_WIN32)
+    /* Windows: fallback to PowerShell.  Still vulnerable to paths with quotes but Win32 API is verbose */
     char cmd[PATH_MAX+128];
-    snprintf(cmd,sizeof(cmd),"powershell -c \"(New-Object Media.SoundPlayer '%s').PlaySync()\"", path);
-#else /* Linux & other POSIX */
-    char cmd[PATH_MAX+64];
-    snprintf(cmd,sizeof(cmd),"aplay '%s' >/dev/null 2>&1", path);
-#endif
-
+    snprintf(cmd, sizeof(cmd),
+             "powershell -c \"(New-Object Media.SoundPlayer '%s').PlaySync()\"",
+             path);
     system(cmd);
+#elif defined(__APPLE__)
+    pid_t pid = fork();
+    if(pid == 0){
+        /* Redirect stdout/stderr to /dev/null to suppress aplay/afplay errors on SIGINT */
+        int fd = open("/dev/null", O_RDWR);
+        if(fd >= 0){ dup2(fd, STDOUT_FILENO); dup2(fd, STDERR_FILENO); if(fd>2) close(fd);}    
+        execlp("afplay", "afplay", path, (char*)NULL);
+        _exit(127);
+    }
+    if(pid > 0) {
+        /* Parent ignores SIGINT during playback so Ctrl+C stops player only */
+        struct sigaction sa_old, sa_ign = {0};
+        sa_ign.sa_handler = SIG_IGN;
+        sigaction(SIGINT, &sa_ign, &sa_old);
+        int status; (void)waitpid(pid, &status, 0);
+        sigaction(SIGINT, &sa_old, NULL);
+    }
+#else
+    pid_t pid = fork();
+    if(pid == 0){
+        int fd = open("/dev/null", O_RDWR);
+        if(fd >= 0){ dup2(fd, STDOUT_FILENO); dup2(fd, STDERR_FILENO); if(fd>2) close(fd);}    
+        execlp("aplay", "aplay", "--", path, (char*)NULL);
+        _exit(127);
+    }
+    if(pid > 0) {
+        struct sigaction sa_old, sa_ign = {0};
+        sa_ign.sa_handler = SIG_IGN;
+        sigaction(SIGINT, &sa_ign, &sa_old);
+        int status; (void)waitpid(pid, &status, 0);
+        sigaction(SIGINT, &sa_old, NULL);
+    }
+#endif
 }
 
-#if defined(__has_c_attribute) && defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 202311L) && __has_c_attribute(nodiscard)
-#  define NODISCARD [[nodiscard]]
-#elif defined(__GNUC__) || defined(__clang__)
-#  define NODISCARD __attribute__((warn_unused_result))
+#ifdef __GNUC__
+#   define NODISCARD  __attribute__((warn_unused_result))
+#   define PURE_ATTR  __attribute__((pure))
+#   define PACKED_ATTR __attribute__((packed))
+#elif defined(__has_c_attribute) && __has_c_attribute(nodiscard)
+#   define NODISCARD [[nodiscard]]
+#   define PURE_ATTR
+#   define PACKED_ATTR
 #else
-#  define NODISCARD /* no-op */
-
-
-#if defined(__GNUC__) || defined(__clang__)
-#  define PURE_ATTR  __attribute__((pure))
-#  define PACKED_ATTR __attribute__((packed))
-#else
-#  define PURE_ATTR
-#  define PACKED_ATTR
+#   define NODISCARD
+#   define PURE_ATTR
+#   define PACKED_ATTR
+#endif
 
 #ifndef restrict
-#  define restrict __restrict
-
-#endif
-#endif
+#   define restrict __restrict
 #endif
 
 #include <assert.h>
@@ -64,16 +90,29 @@ static char *read_text(const Params *pr) {
     if(pr->text) return strdup(pr->text);
 
     FILE *in;
-    if(strcmp(pr->infile,"-")==0) in=stdin; else {
-        in=fopen(pr->infile,"rb"); if(!in){perror("fopen"); return NULL;}
+    if(strcmp(pr->infile, "-") == 0) in = stdin; else {
+        in = fopen(pr->infile, "rb");
+        if(!in){ perror("fopen"); return NULL; }
     }
-    fseek(in,0,SEEK_END); long sz=ftell(in); if(sz<0){perror("ftell");return NULL;}
+
+    if(fseeko(in, 0, SEEK_END) != 0){ perror("fseeko"); if(in!=stdin) fclose(in); return NULL; }
+    off_t sz = ftello(in);
+    if(sz < 0){ perror("ftello"); if(in!=stdin) fclose(in); return NULL; }
     rewind(in);
-    char *buf=(char*)malloc((size_t)sz+1);
-    if(!buf){perror("malloc");return NULL;}
-    fread(buf,1,(size_t)sz,in);
-    if(in!=stdin) fclose(in);
-    buf[sz]='\0';
+
+    char *buf = (char*)malloc((size_t)sz + 1);
+    if(!buf){ perror("malloc"); if(in!=stdin) fclose(in); return NULL; }
+
+    size_t got = fread(buf, 1, (size_t)sz, in);
+    if(got != (size_t)sz){
+        perror("fread");
+        free(buf);
+        if(in!=stdin) fclose(in);
+        return NULL;
+    }
+
+    if(in != stdin) fclose(in);
+    buf[sz] = '\0';
     return buf;
 }
 
@@ -110,7 +149,7 @@ int main(int argc,char **argv){
             const char *code = morse_lookup(ch);
             if(!code) continue;
             for(size_t j=0; code[j]; ++j){
-                uint64_t tone_len = (code[j]=='.') ? dot_samp : dot_samp*MORSE_DAH_UNITS;
+                uint64_t tone_len = (code[j]=='.') ? dot_samp : dot_samp*MORSE_DASH_UNITS;
                 total += dsp_write_tone(fp, tone_len, &phase, phase_inc, p.vol, p.sr, p.filter);
                 total += dsp_write_silence(fp, dot_samp);
             }
@@ -124,16 +163,24 @@ int main(int argc,char **argv){
     progress_finish(&pb);
 
     if(!p.raw){
-        if(!p.quiet && total>0xFFFFFFFFu){
-            fprintf(stderr,"[WARN] File too big for standard WAV (>4GB)\n");
+        if(total > 0xFFFFFFFFu){
+            if(!p.quiet)
+                fprintf(stderr, "[INFO] Using RF64 header for large file (>4 GiB)\n");
+            wav_write_header64(fp, p.sr, total);
+        } else {
+            wav_write_header(fp, p.sr, (uint32_t)total);
         }
-        wav_write_header(fp,p.sr,(uint32_t)(total & 0xFFFFFFFFu));
         fclose(fp);
     }
     free(text);
-    if(!p.raw) printf("Wrote %s (%.2f s)\n",p.outfile,total/(double)p.sr);
+    if(!p.raw) printf("Wrote %s (%.2f s)\n", p.outfile, total / (double)p.sr);
     if(p.play && !p.raw){
         play_file(p.outfile);
+        if(!p.keep){
+            if(remove(p.outfile) != 0 && !p.quiet){
+                perror("remove");
+            }
+        }
     }
     return EXIT_SUCCESS;
 }
