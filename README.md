@@ -13,6 +13,8 @@ A fast, cross-platform **Morse code → WAV** generator written in modern C (C23
 * **Progress bar** with color, ETA, quiet mode and millisecond resolution for very short clips
 * **`--play`** – plays the generated tone with `afplay` (macOS), `aplay` (Linux) or PowerShell (Windows)
 * **Filters** – simple FIR filters (Hann3, etc.) selectable via `--filter`
+* **RF64 auto-support** – files longer than 4 GiB are automatically written in RF64 format
+* **`--keep` flag** – retain the generated WAV after `--play` finishes
 * **Version stamping** – `--version` prints project version + build type injected by CMake
 * Clean **static or shared library** build (header-only API surface)
 * Fully **cross-platform** (Linux, macOS, Windows) – only standard C & OS audio player
@@ -42,10 +44,11 @@ cmake --build build -j
 | `--dot <ms>` | `-d` | – | Explicit dot length (ms); overrides WPM. |
 | `--rate <Hz>` | `-r` | `16000` | Sample rate. |
 | `--vol <0-1>` | `-v` | `1.0` | Output volume (0..1). |
-| `--filter <name>` | – | auto | DSP post-filter: `none`, `hann3` (auto enabled <12 kHz). |
-| `--farns <x>` | – | `1.0` | Farnsworth spacing multiplier (>1). |
-| `--play` | `-P` | – | Play audio after generation and delete file. |
-| `--quiet` | – | – | Suppress progress / info output. |
+| `--filter <name>` | `-F` | auto | DSP post-filter: `none`, `hann3` (auto enabled <12 kHz). |
+| `--farns <x>` | `-a` | `1.0` | Farnsworth spacing multiplier (≥1). |
+| `--play` | `-P` | – | Play audio; combine with `--keep` to retain WAV. |
+| `--keep` | `-k` | – | Keep output file after `--play` (no auto-delete). |
+| `--quiet` | `-q` | – | Suppress progress / info output. |
 | `--version` | `-V` | – | Print version/build info and exit. |
 | `--help` | `-h` | – | Show usage help. |
 
