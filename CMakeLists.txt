@@ -32,8 +32,9 @@ target_include_directories(morsewav PRIVATE
 # Compiler flags ---------------------------------------------------
 if(ENABLE_WARNINGS)
     if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
-        target_compile_options(morsewav PRIVATE -Wall -Wextra -Wpedantic)
-        target_compile_options(morsewav_lib PRIVATE -Wall -Wextra -Wpedantic)
+        set(WARN_FLAGS "-Wall" "-Wextra" "-Wpedantic")
+        target_compile_options(morsewav PRIVATE ${WARN_FLAGS})
+        target_compile_options(morsewav_lib PRIVATE ${WARN_FLAGS})
     endif()
 endif()
 
