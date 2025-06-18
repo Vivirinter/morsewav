@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build & Upload (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          sudo apt-get update -y || true   # macOS will skip (brew used below)
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            sudo apt-get install -y ninja-build
+          else
+            brew install ninja
+          fi
+
+      - name: Set up MSVC & Ninja (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure (Unix)
+        if: runner.os != 'Windows'
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Configure (Windows clang-cl)
+        if: runner.os == 'Windows'
+        run: cmake -B build -G "Visual Studio 17 2022" -T ClangCL -A x64 -DCMAKE_C_STANDARD=23 -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel --config Release
+
+      - name: Package artifact
+        shell: bash
+        run: |
+          mkdir dist
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cp build/Release/morsewav.exe dist/
+            7z a morsewav-${{ runner.os }}.zip dist/*
+            echo "ASSET_NAME=morsewav-${{ runner.os }}.zip" >> $GITHUB_ENV
+          else
+            cp build/morsewav dist/
+            tar -czf morsewav-${{ runner.os }}.tar.gz -C dist .
+            echo "ASSET_NAME=morsewav-${{ runner.os }}.tar.gz" >> $GITHUB_ENV
+          fi
+
+      - name: Create Release (once)
+        if: github.ref_type == 'tag' && matrix.os == 'ubuntu-latest'
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          generate_release_notes: true
+
+      - name: Upload asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ASSET_NAME }}
