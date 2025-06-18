@@ -38,7 +38,8 @@ uint64_t dsp_write_tone(FILE *fp, uint64_t samples, double *phase,
     uint64_t written = 0;
 
     const uint64_t rampSamples = (uint64_t)(RAMP_MS/1000.0 * sr);
-    const uint64_t ramp = (rampSamples*2 > samples) ? samples/2 : rampSamples;
+    uint64_t ramp = (rampSamples*2 > samples) ? samples/2 : rampSamples;
+    if(samples < 2) ramp = 0; /* too short for envelope */
 
     double prev1 = 0.0, prev2 = 0.0;
 
