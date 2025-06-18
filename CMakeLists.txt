@@ -48,14 +48,8 @@ if(ENABLE_SANITIZERS)
 endif()
 
 # C Standard -------------------------------------------------------
-# Use C23 everywhere except Windows (MSVC/clang-cl still lack full support).
-if (WIN32)
-    set(c_std 17)
-else()
-    set(c_std 23)
-endif()
 set_target_properties(morsewav PROPERTIES
-    C_STANDARD ${c_std}
+    C_STANDARD 23
     C_STANDARD_REQUIRED YES
 )
 

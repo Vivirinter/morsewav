@@ -9,15 +9,9 @@ set(LIB_SOURCES
 add_library(morsewav_lib ${LIB_SOURCES})
 
 # Decide on static/shared based on BUILD_SHARED_LIBS
-# Use C23 unless building on Windows (MSVC/clang-cl)
-if (WIN32)
-    set(lib_c_std 17)
-else()
-    set(lib_c_std 23)
-endif()
 set_target_properties(morsewav_lib PROPERTIES
     OUTPUT_NAME morsewav
-    C_STANDARD ${lib_c_std}
+    C_STANDARD 23
     C_STANDARD_REQUIRED YES
     POSITION_INDEPENDENT_CODE ON
 )
