@@ -1,4 +1,5 @@
 #ifndef MORSEWAV_COMMON_H
+#pragma once
 #define MORSEWAV_COMMON_H
 
 #include <limits.h>

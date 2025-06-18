@@ -1,4 +1,5 @@
 #ifndef WAV_LIB_H
+#pragma once
 #define WAV_LIB_H
 
 #include <stdio.h>
@@ -11,6 +12,8 @@ extern "C" {
 void wav_reserve_header(FILE *fp);
 
 void wav_write_header(FILE *fp, uint32_t sample_rate, uint32_t samples);
+
+void wav_write_header64(FILE *fp, uint32_t sample_rate, uint64_t samples);
 
 #ifdef __cplusplus
 }

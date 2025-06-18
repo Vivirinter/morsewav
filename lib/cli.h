@@ -1,4 +1,5 @@
 #ifndef CLI_LIB_H
+#pragma once
 #define CLI_LIB_H
 
 #include <stdbool.h>
@@ -45,6 +46,7 @@ typedef struct Params {
     /* flags */
     bool raw;                  /* stream raw PCM to stdout */
     bool play;                 /* play result after generation */
+    bool keep;                 /* keep file after --play (no auto-remove) */
     bool quiet;                /* suppress progress / info output */
     bool version;              /* print version and exit */
 } Params;

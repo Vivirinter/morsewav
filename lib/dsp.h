@@ -1,4 +1,5 @@
 #ifndef DSP_LIB_H
+#pragma once
 #define DSP_LIB_H
 
 #include <stdio.h>

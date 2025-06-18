@@ -1,4 +1,5 @@
 #ifndef PROGRESS_LIB_H
+#pragma once
 #define PROGRESS_LIB_H
 
 #include <stdbool.h>
