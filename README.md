@@ -34,17 +34,18 @@ cmake --build build -j
 ## Command-line Options
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|
-| `--text` | `-t` | – | Text to encode (UTF-8).  If omitted, use `--infile`. |
-| `--infile <file>` | `-i` | – | Read text from file. |
-| `--outfile <wav>` | `-o` | `out.wav` | Output WAV path.  If omitted with `--play`, a temp file is used. |
-| `--freq <Hz>` | `-f` | `800` | Tone frequency. |
-| `--wpm <num>` | `-w` | `20` | Words per minute (PARIS). |
-| `--farnsworth <wpm>` | – | off | Farnsworth speed for spacing. |
-| `--sr <Hz>` | – | `48000` | Sample rate. |
-| `--vol <0-1>` | – | `0.9` | Output volume. |
-| `--filter <name>` | – | `hann3` | DSP post-filter (`none`, `hann3`, …). |
+| `--input <file>` | `-i` | – | Read text from file or `-` (stdin).  If omitted, supply TEXT as positional arg. |
+| `--outfile <wav>` | `-o` | `morse.wav` | Output WAV.  `-` streams raw PCM to stdout. |
+| `--raw` | `-R` | – | Shorthand for `-o -` (raw PCM to stdout). |
+| `--freq <Hz>` | `-f` | `750` | Tone frequency. |
+| `--wpm <num>` | `-w` | `15` | Words per minute (PARIS). |
+| `--dot <ms>` | `-d` | – | Explicit dot length (ms); overrides WPM. |
+| `--rate <Hz>` | `-r` | `16000` | Sample rate. |
+| `--vol <0-1>` | `-v` | `1.0` | Output volume (0..1). |
+| `--filter <name>` | – | auto | DSP post-filter: `none`, `hann3` (auto enabled <12 kHz). |
+| `--farns <x>` | – | `1.0` | Farnsworth spacing multiplier (>1). |
 | `--play` | `-P` | – | Play audio after generation and delete file. |
-| `--quiet` | `-q` | – | Suppress progress output. |
+| `--quiet` | – | – | Suppress progress / info output. |
 | `--version` | `-V` | – | Print version/build info and exit. |
 | `--help` | `-h` | – | Show usage help. |
 
