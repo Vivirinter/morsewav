@@ -24,8 +24,7 @@ bool cli_parse(int argc, char **argv, Params *p)
         .version = false
     };
 
-    /* use values >255 for long-only opts */
-    enum { OPT_QUIET = 1000, OPT_FILTER, OPT_FARNS, OPT_VERSION };
+    enum { OPT_QUIET = 1000, OPT_FILTER, OPT_FARNS, OPT_KEEP, OPT_VERSION };
 
     static const struct option long_opts[] = {
         {"outfile", required_argument, 0, 'o'},
@@ -37,16 +36,17 @@ bool cli_parse(int argc, char **argv, Params *p)
         {"input",   required_argument, 0, 'i'},
         {"dot",     required_argument, 0, 'd'},
         {"play",    no_argument,       0, 'P'},
-        {"quiet",   no_argument,       0, OPT_QUIET},
-        {"filter",  required_argument, 0, OPT_FILTER},
-        {"farns",   required_argument, 0, OPT_FARNS},
+        {"quiet",   no_argument,       0, 'q'},
+        {"filter",  required_argument, 0, 'F'},
+        {"farns",   required_argument, 0, 'a'},
+        {"keep",    no_argument,       0, 'k'},
         {"version", no_argument,       0, OPT_VERSION},
         {"help",    no_argument,       0, 'h'},
         {0,0,0,0}
     };
 
     int opt;
-    while((opt = getopt_long(argc, argv, "o:Rf:w:r:v:i:d:PhV", long_opts, NULL)) != -1){
+    while((opt = getopt_long(argc, argv, "o:Rf:w:r:v:i:d:PkqF:a:hV", long_opts, NULL)) != -1){
         switch(opt){
         case 'o':
             p->outfile = optarg;
@@ -63,18 +63,23 @@ bool cli_parse(int argc, char **argv, Params *p)
         case 'i': p->infile = optarg; break;
         case 'd': p->dot_ms = strtod(optarg, NULL); break;
         case 'P': p->play = true; break;
-        case OPT_QUIET: p->quiet = true; break;
-        case OPT_FILTER:
-            if(strcmp(optarg, "none") == 0)      p->filter = DSP_FILTER_NONE;
-            else if(strcmp(optarg, "hann3") == 0) p->filter = DSP_FILTER_HANN3;
-            else return false; /* unknown filter */
+        case 'k': p->keep = true; break;
+        case 'q': p->quiet = true; break;
+        case 'F':
+            if(strcasecmp(optarg, "none") == 0)
+                p->filter = DSP_FILTER_NONE;
+            else if(strcasecmp(optarg, "hann3") == 0)
+                p->filter = DSP_FILTER_HANN3;
+            else {
+                fprintf(stderr, "Unknown filter: %s\n", optarg);
+                return false;
+            }
             break;
-        case OPT_FARNS:
+        case 'a':
             p->farns = strtod(optarg, NULL);
             if(p->farns < 1.0) p->farns = 1.0;
             break;
         case 'V': p->version = true; break;
-        case OPT_VERSION: p->version = true; break;
         case 'h':
         default:
             return false;
@@ -108,9 +113,10 @@ void cli_usage(const char *prog)
         "  -i, --input <file>     read text from file or '-' (stdin)\n"
         "  -d, --dot <ms>         dot duration in milliseconds (overrides -w)\n"
         "  -P, --play             play result via system player\n"
-        "      --quiet            suppress progress/info output\n"
-        "      --filter=<name>    audio filter: none | hann3 (default auto)\n"
-        "      --farns=<N>        Farnsworth timing multiplier (>1)\n"
+        "  -k, --keep             keep output file after --play\n"
+        "  -q, --quiet            suppress progress/info output\n"
+        "  -F, --filter=<name>    audio filter: none | hann3 (default auto)\n"
+        "  -a, --farns=<N>        Farnsworth timing multiplier (>=1.0)\n"
         "  -V, --version           show program version\n"
         "  -h, --help             show this help\n",
         prog, DEF_OUTFILE, DEF_FREQ, DEF_WPM, DEF_SR, DEF_VOL);
